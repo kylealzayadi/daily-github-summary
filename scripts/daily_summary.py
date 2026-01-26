@@ -30,7 +30,6 @@ def main():
 
     start_local = dt.datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=tz)
     end_local = start_local + dt.timedelta(days=1)
-
         query = """
         query($login:String!, $from:DateTime!, $to:DateTime!) {
             user(login:$login) {
@@ -45,10 +44,6 @@ def main():
                             totalCount
                             nodes {
                                 occurredAt
-                                # commit details may be present depending on contribution type
-                                commitCount: __typename
-                                # some contribution nodes include commit (GitHub may omit raw commit object)
-                                # we'll attempt to access any available fields defensively below
                             }
                         }
                     }
