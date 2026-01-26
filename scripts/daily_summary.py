@@ -66,6 +66,14 @@ def main():
             nodes { occurredAt pullRequestReview { body url submittedAt } }
           }
         }
+        repositories(first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
+          nodes {
+            nameWithOwner
+            createdAt
+            url
+            isFork
+          }
+        }
       }
     }
     """
@@ -76,6 +84,18 @@ def main():
       "from": start_local.isoformat(),
       "to": end_local.isoformat(),
     })
+      # Find new repositories created on this day (not forks)
+      new_repos = []
+      for repo in data.get("user", {}).get("repositories", {}).get("nodes", []):
+        created_at = repo.get("createdAt")
+        is_fork = repo.get("isFork")
+        if not is_fork and created_at:
+          created_date = created_at[:10]
+          if created_date == day.isoformat():
+            new_repos.append({
+              "name": repo.get("nameWithOwner"),
+              "url": repo.get("url"),
+            })
     print(f"[summary-bot][{unique_run_id}] GitHub data fetched successfully.")
 
     cc = data.get("user", {}).get("contributionsCollection", {})
@@ -125,30 +145,49 @@ def main():
     lines.append("")
     lines.append(f"Today, {GH_USERNAME} did:")
     lines.append("")
-    if real_total == 0:
-        lines.append("- Nothing was done.")
+    if real_total == 0 and not new_repos:
+      lines.append("- Nothing was done.")
     else:
-        lines.append(f"- Commits (excluding this repo): **{real_commits}**")
-        lines.append(f"- Pull requests opened: **{total_prs}**")
-        lines.append(f"- Issues opened: **{total_issues}**")
-        lines.append(f"- Reviews: **{total_reviews}**")
-        lines.append("")
-        other_repos = [(r, c) for r, c in per_repo.items() if r != SUMMARY_REPO and c > 0]
-        lines.append("### Commits by repo")
-        if other_repos:
-            for r, c in sorted(other_repos, key=lambda x: x[1], reverse=True):
-                lines.append(f"- {r}: {c} commit{'s' if c != 1 else ''}")
-        else:
-            lines.append("- (No commits outside this repo.)")
+      if new_repos:
+        lines.append(f"- Repositories created: **{len(new_repos)}**")
+        for repo in new_repos:
+          lines.append(f"    - [{repo['name']}]({repo['url']})")
+      lines.append(f"- Commits (excluding this repo): **{real_commits}**")
+      lines.append(f"- Pull requests opened: **{total_prs}**")
+      lines.append(f"- Issues opened: **{total_issues}**")
+      lines.append(f"- Reviews: **{total_reviews}**")
+      lines.append("")
+      other_repos = [(r, c) for r, c in per_repo.items() if r != SUMMARY_REPO and c > 0]
+      lines.append("### Commits by repo")
+      if other_repos:
+        for r, c in sorted(other_repos, key=lambda x: x[1], reverse=True):
+          lines.append(f"- {r}: {c} commit{'s' if c != 1 else ''}")
+      else:
+        lines.append("- (No commits outside this repo.)")
 
     os.makedirs("summaries", exist_ok=True)
     # Use a unique filename for each run: summaries/YYYY-MM-DD-HHMMSS.md
     out_path = os.path.join("summaries", f"{day.isoformat()}-{now.strftime('%H%M%S')}.md")
     print(f"[summary-bot][{unique_run_id}] Writing summary to {out_path}")
+    summary_content = "\n".join(lines) + "\n"
     with open(out_path, "w", encoding="utf-8") as f:
-      f.write("\n".join(lines) + "\n")
+      f.write(summary_content)
     print(f"[summary-bot][{unique_run_id}] Summary written successfully. Preview:")
     print("\n".join(lines[:10]) + ("\n..." if len(lines) > 10 else ""))
+
+    # Update README.md with the latest summary
+    readme_path = "README.md"
+    if os.path.exists(readme_path):
+      with open(readme_path, "r", encoding="utf-8") as f:
+        readme = f.read()
+      start_marker = "<!-- summary-bot-latest-start -->"
+      end_marker = "<!-- summary-bot-latest-end -->"
+      if start_marker in readme and end_marker in readme:
+        before = readme.split(start_marker)[0]
+        after = readme.split(end_marker)[1]
+        new_readme = before + start_marker + "\n" + summary_content + "\n" + end_marker + after
+        with open(readme_path, "w", encoding="utf-8") as f:
+          f.write(new_readme)
 
 
 if __name__ == "__main__":
