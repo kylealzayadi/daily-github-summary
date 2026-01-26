@@ -74,23 +74,23 @@ def main():
     lines = []
     lines.append(f"# Daily GitHub Summary — {day.isoformat()} ({TZ_NAME})")
     lines.append("")
-    lines.append("## Activity (excluding this summary repo)")
+    lines.append(f"Today, {GH_USERNAME} did:")
     lines.append("")
     if real_total == 0:
-        lines.append("Nothing was done.")
+        lines.append("- Nothing was done.")
     else:
         lines.append(f"- Commits (excluding this repo): **{real_commits}**")
-        lines.append(f"- Pull requests: **{total_prs}**")
-        lines.append(f"- Issues: **{total_issues}**")
+        lines.append(f"- Pull requests opened: **{total_prs}**")
+        lines.append(f"- Issues opened: **{total_issues}**")
         lines.append(f"- Reviews: **{total_reviews}**")
         lines.append("")
         other_repos = [(r,c) for r,c in per_repo.items() if r != SUMMARY_REPO and c > 0]
         lines.append("### Commits by repo")
         if other_repos:
             for r,c in sorted(other_repos, key=lambda x: x[1], reverse=True):
-                lines.append(f"- {r}: {c}")
+                lines.append(f"- {r}: {c} commit{'s' if c != 1 else ''}")
         else:
-            lines.append("(No commits outside this repo.)")
+            lines.append("- (No commits outside this repo.)")
 
     os.makedirs("summaries", exist_ok=True)
     out_path = os.path.join("summaries", f"{day.isoformat()}.md")
