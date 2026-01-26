@@ -30,7 +30,6 @@ jobs:
           python scripts/daily_summary.py
 
       - name: Commit changes
-        if: ${{ github.event_name == 'schedule' }}
         run: |
           git config user.name "daily-bot"
           git config user.email "actions@users.noreply.github.com"
