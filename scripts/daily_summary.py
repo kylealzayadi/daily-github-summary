@@ -116,56 +116,23 @@ def main():
     lines = []
     lines.append(f"# Daily GitHub Summary — {day.isoformat()} ({TZ_NAME})")
     lines.append("")
-    lines.append(f"Today, {GH_USERNAME} did:")
+    lines.append("## Activity (excluding this summary repo)")
     lines.append("")
     if real_total == 0:
-        lines.append("- Nothing was done.")
+        lines.append("No GitHub activity today (excluding this repo).")
     else:
         lines.append(f"- Commits (excluding this repo): **{real_commits}**")
-        lines.append(f"- Pull requests opened: **{total_prs}**")
-        lines.append(f"- Issues opened: **{total_issues}**")
+        lines.append(f"- Pull requests: **{total_prs}**")
+        lines.append(f"- Issues: **{total_issues}**")
         lines.append(f"- Reviews: **{total_reviews}**")
         lines.append("")
-        other_repos = [(r, c) for r, c in per_repo.items() if r != SUMMARY_REPO and c > 0]
+        other_repos = [(r,c) for r,c in per_repo.items() if r != SUMMARY_REPO and c > 0]
         lines.append("### Commits by repo")
         if other_repos:
-            for r, c in sorted(other_repos, key=lambda x: x[1], reverse=True):
-                lines.append(f"- {r}: {c} commit{'s' if c != 1 else ''}")
+            for r,c in sorted(other_repos, key=lambda x: x[1], reverse=True):
+                lines.append(f"- {r}: {c}")
         else:
-            lines.append("- (No commits outside this repo.)")
-
-        if commits_details:
-            lines.append("")
-            lines.append("### Commit timestamps (sample)")
-            for d in sorted(commits_details, key=lambda x: x["when"])[:20]:
-                lines.append(f"- {d['repo']}: {d['when']}")
-
-        if pr_details:
-            lines.append("")
-            lines.append("### Pull requests")
-            for p in pr_details:
-                title = p.get('title') or '(no title)'
-                url = p.get('url')
-                when = p.get('when')
-                lines.append(f"- {title} — {when} — {url}")
-
-        if issue_details:
-            lines.append("")
-            lines.append("### Issues")
-            for i in issue_details:
-                title = i.get('title') or '(no title)'
-                url = i.get('url')
-                when = i.get('when')
-                lines.append(f"- {title} — {when} — {url}")
-
-        if review_details:
-            lines.append("")
-            lines.append("### Reviews (snippet)")
-            for r in review_details:
-                body = r.get('body') or '(no body)'
-                url = r.get('url')
-                when = r.get('when')
-                lines.append(f"- {when} — {body} — {url}")
+            lines.append("(No commits outside this repo.)")
 
     os.makedirs("summaries", exist_ok=True)
     out_path = os.path.join("summaries", f"{day.isoformat()}.md")
