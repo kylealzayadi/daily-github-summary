@@ -33,6 +33,6 @@ jobs:
         run: |
           git config user.name "daily-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add summaries
+          git add summaries README.md
           git commit -m "Daily summary" || echo "no changes to commit"
           git push
