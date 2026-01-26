@@ -117,8 +117,11 @@ def main():
     real_commits = max(total_commits - summary_repo_commits, 0)
     real_total = real_commits + total_prs + total_issues + total_reviews
 
+    # Format run time with timezone abbreviation (e.g., PST/PDT)
+    run_time_str = now.strftime('%Y-%m-%d %H:%M:%S %Z (Pacific Time)')
     lines = []
     lines.append(f"# Daily GitHub Summary - {day.isoformat()} ({TZ_NAME})")
+    lines.append(f"**Run at:** {run_time_str}")
     lines.append("")
     lines.append(f"Today, {GH_USERNAME} did:")
     lines.append("")
@@ -139,7 +142,8 @@ def main():
             lines.append("- (No commits outside this repo.)")
 
     os.makedirs("summaries", exist_ok=True)
-    out_path = os.path.join("summaries", f"{day.isoformat()}.md")
+    # Use a unique filename for each run: summaries/YYYY-MM-DD-HHMMSS.md
+    out_path = os.path.join("summaries", f"{day.isoformat()}-{now.strftime('%H%M%S')}.md")
     print(f"[summary-bot][{unique_run_id}] Writing summary to {out_path}")
     with open(out_path, "w", encoding="utf-8") as f:
       f.write("\n".join(lines) + "\n")
