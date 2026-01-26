@@ -31,41 +31,93 @@ def main():
     start_local = dt.datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=tz)
     end_local = start_local + dt.timedelta(days=1)
 
-    query = """
-    query($login:String!, $from:DateTime!, $to:DateTime!) {
-      user(login:$login) {
-        contributionsCollection(from:$from, to:$to) {
-          totalCommitContributions
-          totalPullRequestContributions
-          totalIssueContributions
-          totalPullRequestReviewContributions
-          commitContributionsByRepository(maxRepositories: 100) {
-            repository { nameWithOwner }
-            contributions(first: 1) { totalCount }
-          }
+        query = """
+        query($login:String!, $from:DateTime!, $to:DateTime!) {
+            user(login:$login) {
+                contributionsCollection(from:$from, to:$to) {
+                    totalCommitContributions
+                    totalPullRequestContributions
+                    totalIssueContributions
+                    totalPullRequestReviewContributions
+                    commitContributionsByRepository(maxRepositories: 100) {
+                        repository { nameWithOwner }
+                        contributions(first: 100) {
+                            totalCount
+                            nodes {
+                                occurredAt
+                                # commit details may be present depending on contribution type
+                                commitCount: __typename
+                                # some contribution nodes include commit (GitHub may omit raw commit object)
+                                # we'll attempt to access any available fields defensively below
+                            }
+                        }
+                    }
+                    pullRequestContributions(first:100) {
+                        totalCount
+                        nodes {
+                            occurredAt
+                            pullRequest { title url createdAt }
+                        }
+                    }
+                    issueContributions(first:100) {
+                        totalCount
+                        nodes {
+                            occurredAt
+                            issue { title url createdAt }
+                        }
+                    }
+                    pullRequestReviewContributions(first:100) {
+                        totalCount
+                        nodes {
+                            occurredAt
+                            pullRequestReview { body url submittedAt }
+                        }
+                    }
+                }
+            }
         }
-      }
-    }
-    """
+        """
 
-    data = gh_graphql(query, {
-        "login": GH_USERNAME,
-        "from": start_local.isoformat(),
-        "to": end_local.isoformat(),
-    })
+        data = gh_graphql(query, {
+                "login": GH_USERNAME,
+                "from": start_local.isoformat(),
+                "to": end_local.isoformat(),
+        })
 
-    cc = data["user"]["contributionsCollection"]
+        cc = data["user"]["contributionsCollection"]
 
-    per_repo = {}
-    for item in cc["commitContributionsByRepository"]:
-        repo = item["repository"]["nameWithOwner"]
-        count = item["contributions"]["totalCount"]
-        per_repo[repo] = count
+        per_repo = {}
+        commits_details = []
+        for item in cc.get("commitContributionsByRepository", []):
+                repo = item["repository"]["nameWithOwner"]
+                contribs = item.get("contributions", {})
+                count = contribs.get("totalCount", 0)
+                per_repo[repo] = count
+                # collect any nodes' occurredAt for basic timestamps
+                for node in contribs.get("nodes", []):
+                        occ = node.get("occurredAt")
+                        if occ:
+                                commits_details.append({"repo": repo, "when": occ})
 
-    total_commits = cc["totalCommitContributions"]
-    total_prs = cc["totalPullRequestContributions"]
-    total_issues = cc["totalIssueContributions"]
-    total_reviews = cc["totalPullRequestReviewContributions"]
+        total_commits = cc.get("totalCommitContributions", 0)
+        total_prs = cc.get("totalPullRequestContributions", 0)
+        total_issues = cc.get("totalIssueContributions", 0)
+        total_reviews = cc.get("totalPullRequestReviewContributions", 0)
+
+        pr_details = []
+        for n in cc.get("pullRequestContributions", {}).get("nodes", []):
+                pr = n.get("pullRequest") or {}
+                pr_details.append({"title": pr.get("title"), "url": pr.get("url"), "when": n.get("occurredAt")})
+
+        issue_details = []
+        for n in cc.get("issueContributions", {}).get("nodes", []):
+                isu = n.get("issue") or {}
+                issue_details.append({"title": isu.get("title"), "url": isu.get("url"), "when": n.get("occurredAt")})
+
+        review_details = []
+        for n in cc.get("pullRequestReviewContributions", {}).get("nodes", []):
+                rev = n.get("pullRequestReview") or {}
+                review_details.append({"body": (rev.get("body") or '').strip()[:200], "url": rev.get("url"), "when": n.get("occurredAt")})
 
     summary_repo_commits = per_repo.get(SUMMARY_REPO, 0)
     real_commits = max(total_commits - summary_repo_commits, 0)
