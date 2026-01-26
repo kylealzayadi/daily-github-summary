@@ -28,8 +28,9 @@ def main():
     now = dt.datetime.now(tz)
     day = now.date()
 
-    start_local = dt.datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=tz)
-    end_local = start_local + dt.timedelta(days=1)
+        start_local = dt.datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=tz)
+        end_local = start_local + dt.timedelta(days=1)
+
         query = """
         query($login:String!, $from:DateTime!, $to:DateTime!) {
             user(login:$login) {
