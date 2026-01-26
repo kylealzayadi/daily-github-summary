@@ -80,22 +80,22 @@ def main():
 
     print(f"[summary-bot][{unique_run_id}] Fetching GitHub data for {GH_USERNAME} from {start_local.isoformat()} to {end_local.isoformat()}")
     data = gh_graphql(query, {
-      "login": GH_USERNAME,
-      "from": start_local.isoformat(),
-      "to": end_local.isoformat(),
+        "login": GH_USERNAME,
+        "from": start_local.isoformat(),
+        "to": end_local.isoformat(),
     })
-      # Find new repositories created on this day (not forks)
-      new_repos = []
-      for repo in data.get("user", {}).get("repositories", {}).get("nodes", []):
+    # Find new repositories created on this day (not forks)
+    new_repos = []
+    for repo in data.get("user", {}).get("repositories", {}).get("nodes", []):
         created_at = repo.get("createdAt")
         is_fork = repo.get("isFork")
         if not is_fork and created_at:
-          created_date = created_at[:10]
-          if created_date == day.isoformat():
-            new_repos.append({
-              "name": repo.get("nameWithOwner"),
-              "url": repo.get("url"),
-            })
+            created_date = created_at[:10]
+            if created_date == day.isoformat():
+                new_repos.append({
+                    "name": repo.get("nameWithOwner"),
+                    "url": repo.get("url"),
+                })
     print(f"[summary-bot][{unique_run_id}] GitHub data fetched successfully.")
 
     cc = data.get("user", {}).get("contributionsCollection", {})
