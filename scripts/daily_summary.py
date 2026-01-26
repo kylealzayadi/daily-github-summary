@@ -32,6 +32,8 @@ def main():
     tz = ZoneInfo(TZ_NAME)
     now = dt.datetime.now(tz)
     day = now.date()
+    unique_run_id = now.strftime('%Y%m%d-%H%M%S')
+    print(f"[summary-bot][{unique_run_id}] Script started at {now.isoformat()} ({TZ_NAME})")
 
     start_local = dt.datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=tz)
     end_local = start_local + dt.timedelta(days=1)
@@ -68,11 +70,13 @@ def main():
     }
     """
 
+    print(f"[summary-bot][{unique_run_id}] Fetching GitHub data for {GH_USERNAME} from {start_local.isoformat()} to {end_local.isoformat()}")
     data = gh_graphql(query, {
-        "login": GH_USERNAME,
-        "from": start_local.isoformat(),
-        "to": end_local.isoformat(),
+      "login": GH_USERNAME,
+      "from": start_local.isoformat(),
+      "to": end_local.isoformat(),
     })
+    print(f"[summary-bot][{unique_run_id}] GitHub data fetched successfully.")
 
     cc = data.get("user", {}).get("contributionsCollection", {})
 
@@ -136,8 +140,11 @@ def main():
 
     os.makedirs("summaries", exist_ok=True)
     out_path = os.path.join("summaries", f"{day.isoformat()}.md")
+    print(f"[summary-bot][{unique_run_id}] Writing summary to {out_path}")
     with open(out_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+      f.write("\n".join(lines) + "\n")
+    print(f"[summary-bot][{unique_run_id}] Summary written successfully. Preview:")
+    print("\n".join(lines[:10]) + ("\n..." if len(lines) > 10 else ""))
 
 
 if __name__ == "__main__":
