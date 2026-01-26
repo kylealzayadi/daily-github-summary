@@ -77,7 +77,7 @@ def main():
     lines.append("## Activity (excluding this summary repo)")
     lines.append("")
     if real_total == 0:
-        lines.append("No GitHub activity today (excluding this repo).")
+        lines.append("Nothing was done.")
     else:
         lines.append(f"- Commits (excluding this repo): **{real_commits}**")
         lines.append(f"- Pull requests: **{total_prs}**")

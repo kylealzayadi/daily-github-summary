@@ -2,9 +2,9 @@ name: Daily GitHub Summary (always commit)
 
 on:
   schedule:
-    - cron: "0 21 * * *"   # ~1:00 PM Los Angeles
-    - cron: "0 5 * * *"    # ~9:00 PM Los Angeles
-    - cron: "30 7 * * *"   # ~11:30 PM Los Angeles
+    - cron: "0 20 * * *"   # 12:00 PM Pacific (PST)
+    - cron: "0 4 * * *"    # 8:00 PM Pacific (PST)
+    - cron: "0 7 * * *"    # 11:00 PM Pacific (PST)
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,7 @@ jobs:
           python scripts/daily_summary.py
 
       - name: Commit changes
+        if: ${{ github.event_name == 'schedule' }}
         run: |
           git config user.name "daily-bot"
           git config user.email "actions@users.noreply.github.com"
