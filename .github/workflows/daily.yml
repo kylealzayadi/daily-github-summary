@@ -3,8 +3,8 @@ name: Daily GitHub Summary (always commit)
 on:
   schedule:
     - cron: "0 20 * * *"   # 12:00 PM Pacific (PST)
-    - cron: "0 4 * * *"    # 8:00 PM Pacific (PST)
-    - cron: "0 7 * * *"    # 11:00 PM Pacific (PST)
+    - cron: "0 4 * * *"    # 8:00 PM Pacific (PST, next day UTC)
+    - cron: "0 7 * * *"    # 11:00 PM Pacific (PST, next day UTC)
   workflow_dispatch:
 
 permissions:
