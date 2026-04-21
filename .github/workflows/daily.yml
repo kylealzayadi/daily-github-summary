@@ -31,8 +31,8 @@ jobs:
 
       - name: Commit changes
         run: |
-          git config user.name "daily-bot"
-          git config user.email "actions@users.noreply.github.com"
+          git config user.name "kylealzayadi"
+          git config user.email "40701337+kylealzayadi@users.noreply.github.com"
           git add summaries README.md
           git commit -m "Daily summary" || echo "no changes to commit"
           git push
