@@ -9,6 +9,10 @@ on:
     - cron: "30 5 * * *"   # Slot 5 - ~9:30 PM Pacific
   workflow_dispatch:
 
+concurrency:
+  group: whoop-summary
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

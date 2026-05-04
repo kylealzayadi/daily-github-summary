@@ -3,15 +3,16 @@ import sys
 import json
 import random
 import hashlib
+import time
 import datetime as dt
 import urllib.request
 import urllib.parse
 from zoneinfo import ZoneInfo
 
-WHOOP_CLIENT_ID = os.environ.get("WHOOP_CLIENT_ID")
-WHOOP_CLIENT_SECRET = os.environ.get("WHOOP_CLIENT_SECRET")
-WHOOP_REFRESH_TOKEN = os.environ.get("WHOOP_REFRESH_TOKEN")
-GH_PAT = os.environ.get("GH_PAT")
+WHOOP_CLIENT_ID = (os.environ.get("WHOOP_CLIENT_ID") or "").strip().strip("﻿")
+WHOOP_CLIENT_SECRET = (os.environ.get("WHOOP_CLIENT_SECRET") or "").strip().strip("﻿")
+WHOOP_REFRESH_TOKEN = (os.environ.get("WHOOP_REFRESH_TOKEN") or "").strip().strip("﻿")
+GH_PAT = (os.environ.get("GH_PAT") or "").strip().strip("﻿")
 GH_REPO = os.environ.get("GITHUB_REPOSITORY", "")
 TZ_NAME = os.environ.get("TZ_NAME", "America/Los_Angeles")
 RUN_SLOT = int(os.environ.get("RUN_SLOT", "1"))
@@ -54,33 +55,42 @@ def update_github_secret(secret_name: str, secret_value: str):
         os.system("pip install pynacl -q")
         from nacl import encoding, public
 
-    key_url = f"https://api.github.com/repos/{GH_REPO}/actions/secrets/public-key"
-    req = urllib.request.Request(key_url, headers={
-        "Authorization": f"Bearer {GH_PAT}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    })
-    with urllib.request.urlopen(req) as resp:
-        key_data = json.loads(resp.read().decode("utf-8"))
+    last_err = None
+    for attempt in range(3):
+        try:
+            key_url = f"https://api.github.com/repos/{GH_REPO}/actions/secrets/public-key"
+            req = urllib.request.Request(key_url, headers={
+                "Authorization": f"Bearer {GH_PAT}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            })
+            with urllib.request.urlopen(req) as resp:
+                key_data = json.loads(resp.read().decode("utf-8"))
 
-    public_key = public.PublicKey(key_data["key"].encode("utf-8"), encoding.Base64Encoder())
-    sealed_box = public.SealedBox(public_key)
-    encrypted = sealed_box.encrypt(secret_value.encode("utf-8"))
-    encrypted_value = b64encode(encrypted).decode("utf-8")
+            public_key = public.PublicKey(key_data["key"].encode("utf-8"), encoding.Base64Encoder())
+            sealed_box = public.SealedBox(public_key)
+            encrypted = sealed_box.encrypt(secret_value.encode("utf-8"))
+            encrypted_value = b64encode(encrypted).decode("utf-8")
 
-    secret_url = f"https://api.github.com/repos/{GH_REPO}/actions/secrets/{secret_name}"
-    put_data = json.dumps({
-        "encrypted_value": encrypted_value,
-        "key_id": key_data["key_id"],
-    }).encode("utf-8")
-    req = urllib.request.Request(secret_url, data=put_data, headers={
-        "Authorization": f"Bearer {GH_PAT}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-    }, method="PUT")
-    with urllib.request.urlopen(req) as resp:
-        pass
+            secret_url = f"https://api.github.com/repos/{GH_REPO}/actions/secrets/{secret_name}"
+            put_data = json.dumps({
+                "encrypted_value": encrypted_value,
+                "key_id": key_data["key_id"],
+            }).encode("utf-8")
+            req = urllib.request.Request(secret_url, data=put_data, headers={
+                "Authorization": f"Bearer {GH_PAT}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+            }, method="PUT")
+            with urllib.request.urlopen(req) as resp:
+                pass
+            return
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"Failed to update secret after 3 attempts: {last_err}")
 
 
 def whoop_get(endpoint: str, access_token: str, params: dict = None) -> dict:
@@ -118,10 +128,18 @@ def main():
 
     # Refresh WHOOP token
     print(f"[summary-bot][{unique_run_id}] Refreshing WHOOP token...")
-    access_token, new_refresh_token = refresh_whoop_token()
+    try:
+        access_token, new_refresh_token = refresh_whoop_token()
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            print(f"[summary-bot][{unique_run_id}] ERROR: WHOOP refresh token is invalid (401).")
+            print(f"[summary-bot][{unique_run_id}] Run 'python scripts/auth_whoop.py' locally to re-authorize.")
+            sys.exit(1)
+        raise
     print(f"[summary-bot][{unique_run_id}] Token refreshed successfully.")
 
-    # Update the refresh token secret for next run
+    # Update the refresh token secret IMMEDIATELY - this is critical since
+    # the old token is now consumed and the new one must be persisted.
     if GH_PAT and GH_REPO:
         print(f"[summary-bot][{unique_run_id}] Updating WHOOP_REFRESH_TOKEN secret...")
         update_github_secret("WHOOP_REFRESH_TOKEN", new_refresh_token)
