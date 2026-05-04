@@ -156,7 +156,16 @@ def main():
         rec = recovery_records[0]
         score = rec.get("score", {})
         if score and rec.get("score_state") == "SCORED":
-            lines.append(f"- **Recovery Score:** {score.get('recovery_score', 'N/A')}%")
+            rec_score = score.get('recovery_score', 0)
+            if rec_score >= 67:
+                rec_summary = "Green — body is well recovered and primed for strain."
+            elif rec_score >= 34:
+                rec_summary = "Yellow — moderate recovery, manageable strain recommended."
+            else:
+                rec_summary = "Red — body needs rest, prioritize recovery today."
+            lines.append(f"> {rec_summary}")
+            lines.append("")
+            lines.append(f"- **Recovery Score:** {rec_score}%")
             lines.append(f"- **HRV (RMSSD):** {score.get('hrv_rmssd_milli', 'N/A')} ms")
             lines.append(f"- **Resting Heart Rate:** {score.get('resting_heart_rate', 'N/A')} bpm")
             spo2 = score.get('spo2_percentage')
@@ -182,7 +191,18 @@ def main():
             stage = score.get("stage_summary", {})
             total_sleep = (stage.get("total_in_bed_time_milli", 0)
                           - stage.get("total_awake_time_milli", 0))
-            lines.append(f"- **Sleep Performance:** {score.get('sleep_performance_percentage', 'N/A')}%")
+            sleep_perf = score.get('sleep_performance_percentage', 0)
+            if sleep_perf >= 85:
+                sleep_summary = "Excellent sleep — met or exceeded sleep need. Well rested."
+            elif sleep_perf >= 70:
+                sleep_summary = "Adequate sleep — close to target but could use a bit more."
+            elif sleep_perf >= 50:
+                sleep_summary = "Below average sleep — building sleep debt, try to catch up."
+            else:
+                sleep_summary = "Poor sleep — significant deficit, expect lower recovery tomorrow."
+            lines.append(f"> {sleep_summary}")
+            lines.append("")
+            lines.append(f"- **Sleep Performance:** {sleep_perf}%")
             lines.append(f"- **Sleep Duration:** {ms_to_hours_min(total_sleep)}")
             lines.append(f"- **Time in Bed:** {ms_to_hours_min(stage.get('total_in_bed_time_milli', 0))}")
             lines.append(f"- **Sleep Efficiency:** {score.get('sleep_efficiency_percentage', 'N/A')}%")
@@ -208,7 +228,20 @@ def main():
         cyc = cycle_records[0]
         score = cyc.get("score", {})
         if score and cyc.get("score_state") == "SCORED":
-            lines.append(f"- **Day Strain:** {score.get('strain', 'N/A')}")
+            strain_val = score.get('strain', 0)
+            if strain_val >= 18:
+                strain_summary = "All out — maximal exertion day, extended recovery will be needed."
+            elif strain_val >= 14:
+                strain_summary = "High strain — pushed hard today, good stimulus for adaptation."
+            elif strain_val >= 10:
+                strain_summary = "Moderate strain — active day with balanced effort."
+            elif strain_val >= 5:
+                strain_summary = "Light strain — low-key day, minimal physical stress."
+            else:
+                strain_summary = "Rest day — very little exertion, body is conserving energy."
+            lines.append(f"> {strain_summary}")
+            lines.append("")
+            lines.append(f"- **Day Strain:** {strain_val}")
             lines.append(f"- **Calories:** {round(score.get('kilojoule', 0) * 0.239006, 1)} kcal")
             lines.append(f"- **Average Heart Rate:** {score.get('average_heart_rate', 'N/A')} bpm")
             lines.append(f"- **Max Heart Rate:** {score.get('max_heart_rate', 'N/A')} bpm")
@@ -222,6 +255,13 @@ def main():
     lines.append("## Workouts")
     workout_records = workout_data.get("records", [])
     if workout_records:
+        total_workout_strain = sum(w.get("score", {}).get("strain", 0) for w in workout_records)
+        if len(workout_records) == 1:
+            workout_summary = f"1 activity logged with {round(total_workout_strain, 1)} total strain."
+        else:
+            workout_summary = f"{len(workout_records)} activities logged with {round(total_workout_strain, 1)} combined strain."
+        lines.append(f"> {workout_summary}")
+        lines.append("")
         for i, w in enumerate(workout_records, 1):
             score = w.get("score", {})
             sport = w.get("sport_name", "Activity")
